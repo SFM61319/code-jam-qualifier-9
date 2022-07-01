@@ -10,16 +10,27 @@ from qualifier import Request
 
 
 STAFF_IDS = (
-    "jmMZkSGVBbCDgKKMMSNPS", "HeLlOWoRlD123", "iKnowThatYouAreReadingThis",
-    "PyTHonDIscorDCoDEJam", "iWAShereWRITINGthis"
+    "jmMZkSGVBbCDgKKMMSNPS",
+    "HeLlOWoRlD123",
+    "iKnowThatYouAreReadingThis",
+    "PyTHonDIscorDCoDEJam",
+    "iWAShereWRITINGthis",
 )
 SPECIALITIES = (
-    "pasta", "meat", "vegetables", "non-food", "dessert",
+    "pasta",
+    "meat",
+    "vegetables",
+    "non-food",
+    "dessert",
 )
 
 
-async def _receive() -> None: ...
-async def _send(_: object) -> None: ...
+async def _receive() -> None:
+    ...
+
+
+async def _send(_: object) -> None:
+    ...
 
 
 class WarnTypoAccess(dict):
@@ -41,9 +52,9 @@ class WarnTypoAccess(dict):
 
 
 def create_request(
-        scope: Dict[str, Any],
-        receive: Callable[[], Awaitable[object]] = _receive,
-        send: Callable[[object], Awaitable[Any]] = _send
+    scope: Dict[str, Any],
+    receive: Callable[[], Awaitable[object]] = _receive,
+    send: Callable[[object], Awaitable[Any]] = _send,
 ) -> Request:
     """
     Create a request object with the given scope and receive/send functions.
@@ -55,12 +66,14 @@ def create_request(
 def wrap_receive_mock(id_: str, mock: AsyncMock) -> Callable[[], Awaitable[object]]:
     async def receive() -> object:
         return await mock(id_)
+
     return receive
 
 
 def wrap_send_mock(id_: str, mock: AsyncMock) -> Callable[[object], Awaitable[Any]]:
     async def send(obj: object) -> Any:
         return await mock(id_, obj)
+
     return send
 
 
@@ -69,14 +82,19 @@ class QualifierTestCase(unittest.IsolatedAsyncioTestCase):
         self.manager = qualifier.RestaurantManager()
 
     def verify_staff_dict(self):
-        self.assertTrue(hasattr(self.manager, "staff"), msg="Restaurant manager has no staff attribute")
+        self.assertTrue(
+            hasattr(self.manager, "staff"),
+            msg="Restaurant manager has no staff attribute",
+        )
         staff = self.manager.staff
 
         # This is safe against different hooks that isinstance() has
         self.assertIs(type(staff), dict, msg="'staff' attribute is not a dictionary")
         for key, value in staff.items():
             self.assertIs(type(key), str, msg="Staff dictionary key is not a string")
-            self.assertIs(type(value), Request, msg="Staff dictionary value is not a Request")
+            self.assertIs(
+                type(value), Request, msg="Staff dictionary value is not a Request"
+            )
 
 
 class RegistrationTests(QualifierTestCase):
@@ -89,18 +107,27 @@ class RegistrationTests(QualifierTestCase):
         id_ = STAFF_IDS[0]
         receive, send = AsyncMock(), AsyncMock()
 
-        staff = create_request({"type": "staff.onduty", "id": id_, "speciality": [SPECIALITIES[0]]}, receive, send)
+        staff = create_request(
+            {"type": "staff.onduty", "id": id_, "speciality": [SPECIALITIES[0]]},
+            receive,
+            send,
+        )
 
         await self.manager(staff)
 
         self.verify_staff_dict()  # Manager may have overriden it after adding staff
 
         # These are separated to be more helpful when failing
-        self.assertEqual(len(self.manager.staff), 1, msg="Not the correct amount of staff registered")
-        self.assertIn(id_, self.manager.staff, msg="Staff not registered with the correct ID")
         self.assertEqual(
-            self.manager.staff[id_], staff,
-            msg="Staff request not stored as dictionary value"
+            len(self.manager.staff), 1, msg="Not the correct amount of staff registered"
+        )
+        self.assertIn(
+            id_, self.manager.staff, msg="Staff not registered with the correct ID"
+        )
+        self.assertEqual(
+            self.manager.staff[id_],
+            staff,
+            msg="Staff request not stored as dictionary value",
         )
 
         receive.assert_not_called()
@@ -109,11 +136,15 @@ class RegistrationTests(QualifierTestCase):
         receive.reset_mock()
         send.reset_mock()
 
-        await self.manager(create_request({"type": "staff.offduty", "id": id_}, receive, send))
+        await self.manager(
+            create_request({"type": "staff.offduty", "id": id_}, receive, send)
+        )
 
         self.verify_staff_dict()
 
-        self.assertEqual(self.manager.staff, {}, msg="Staff not removed after going off-duty")
+        self.assertEqual(
+            self.manager.staff, {}, msg="Staff not removed after going off-duty"
+        )
 
     async def test_multiple_staff_registration(self) -> None:
         staff: List[Request] = []
@@ -121,19 +152,33 @@ class RegistrationTests(QualifierTestCase):
         for id_, speciality in zip(STAFF_IDS, SPECIALITIES):
             receive, send = AsyncMock(), AsyncMock()
 
-            request = create_request({"type": "staff.onduty", "id": id_, "speciality": [speciality]}, receive, send)
+            request = create_request(
+                {"type": "staff.onduty", "id": id_, "speciality": [speciality]},
+                receive,
+                send,
+            )
             staff.append(request)
 
             await self.manager(request)
 
         self.verify_staff_dict()  # Ensure it is still a dictionary for the following assertions
 
-        self.assertEqual(len(self.manager.staff), len(STAFF_IDS), msg="Not all staff were registered")
+        self.assertEqual(
+            len(self.manager.staff), len(STAFF_IDS), msg="Not all staff were registered"
+        )
 
         for id_, request in zip(STAFF_IDS, staff):
             with self.subTest(staff_id=id_):
-                self.assertIn(id_, self.manager.staff, msg="Registered staff's ID not found in dictionary")
-                self.assertEqual(self.manager.staff[id_], request, msg="Staff request not stored as dictionary value")
+                self.assertIn(
+                    id_,
+                    self.manager.staff,
+                    msg="Registered staff's ID not found in dictionary",
+                )
+                self.assertEqual(
+                    self.manager.staff[id_],
+                    request,
+                    msg="Staff request not stored as dictionary value",
+                )
 
                 request.receive.assert_not_called()
                 request.send.assert_not_called()
@@ -144,28 +189,37 @@ class RegistrationTests(QualifierTestCase):
                 request.receive.reset_mock()
                 request.send.reset_mock()
 
-                await self.manager(create_request({"type": "staff.offduty", "id": id_}, request.receive, request.send))
+                await self.manager(
+                    create_request(
+                        {"type": "staff.offduty", "id": id_},
+                        request.receive,
+                        request.send,
+                    )
+                )
 
         self.verify_staff_dict()
-        self.assertEqual(self.manager.staff, {}, msg="Not all staff removed after going off-duty")
+        self.assertEqual(
+            self.manager.staff, {}, msg="Not all staff removed after going off-duty"
+        )
 
 
 class DeliveringTests(QualifierTestCase):
-
     async def test_handle_customer(self) -> None:
         id_ = STAFF_IDS[-1]
 
         complete_order, result = object(), object()
         staff = create_request(
             {"type": "staff.onduty", "id": id_, "speciality": [SPECIALITIES[-1]]},
-            AsyncMock(return_value=result), AsyncMock()
+            AsyncMock(return_value=result),
+            AsyncMock(),
         )
 
         await self.manager(staff)
 
         order = create_request(
             {"type": "order", "speciality": SPECIALITIES[-1]},
-            AsyncMock(return_value=complete_order), AsyncMock()
+            AsyncMock(return_value=complete_order),
+            AsyncMock(),
         )
         await self.manager(order)
 
@@ -191,10 +245,10 @@ class DeliveringTests(QualifierTestCase):
         staff = [
             create_request(
                 {"type": "staff.onduty", "id": id_, "speciality": [speciality]},
-
                 # We wrap the mocks so that they pass the ID of the staff, that way
                 # we can ensure that the order was both sent and received to the same staff.
-                wrap_receive_mock(id_, staff_receive), wrap_send_mock(id_, staff_send)
+                wrap_receive_mock(id_, staff_receive),
+                wrap_send_mock(id_, staff_send),
             )
             for id_, speciality in zip(STAFF_IDS, reversed(SPECIALITIES))
         ]
@@ -203,7 +257,9 @@ class DeliveringTests(QualifierTestCase):
             await self.manager(request)
 
         orders = [
-            create_request({"type": "order", "speciality": speciality}, AsyncMock(), AsyncMock())
+            create_request(
+                {"type": "order", "speciality": speciality}, AsyncMock(), AsyncMock()
+            )
             for speciality in SPECIALITIES
         ]
 
@@ -217,8 +273,9 @@ class DeliveringTests(QualifierTestCase):
 
             # We assert that it is 2 arguments, because the wrapper over the mock passes an additional one
             self.assertEqual(
-                len(staff_send.call_args.args), 2,
-                msg="Staff send method not awaited with correct amount of arguments"
+                len(staff_send.call_args.args),
+                2,
+                msg="Staff send method not awaited with correct amount of arguments",
             )
 
             staff_id = staff_send.call_args.args[0]
@@ -234,7 +291,9 @@ class DeliveringTests(QualifierTestCase):
             staff_send.reset_mock()
 
         for request in staff:
-            await self.manager(create_request({"type": "staff.offduty", "id": request.scope["id"]}))
+            await self.manager(
+                create_request({"type": "staff.offduty", "id": request.scope["id"]})
+            )
 
     async def test_order_speciality_match(self) -> None:
         staff_ids, specialities = list(STAFF_IDS), list(SPECIALITIES)
@@ -245,10 +304,10 @@ class DeliveringTests(QualifierTestCase):
         staff = {
             id_: create_request(
                 {"type": "staff.onduty", "id": id_, "speciality": [speciality]},
-
                 # We wrap the mocks so that they pass the ID of the staff, that way
                 # we can ensure that the order was both sent and received to the same staff.
-                wrap_receive_mock(id_, staff_receive), wrap_send_mock(id_, staff_send)
+                wrap_receive_mock(id_, staff_receive),
+                wrap_send_mock(id_, staff_send),
             )
             for id_, speciality in zip(staff_ids, specialities)
         }
@@ -256,7 +315,10 @@ class DeliveringTests(QualifierTestCase):
         for request in staff.values():
             await self.manager(request)
 
-        orders = [create_request({"type": "order", "speciality": speciality}) for speciality in specialities * 10]
+        orders = [
+            create_request({"type": "order", "speciality": speciality})
+            for speciality in specialities * 10
+        ]
 
         for order in orders:
             await self.manager(order)
@@ -265,13 +327,16 @@ class DeliveringTests(QualifierTestCase):
             staff_id = staff_send.call_args.args[0]
 
             self.assertIn(
-                order.scope["speciality"], staff[staff_id].scope["speciality"],
-                msg="Order speciality not matched with speciality of staff"
+                order.scope["speciality"],
+                staff[staff_id].scope["speciality"],
+                msg="Order speciality not matched with speciality of staff",
             )
             staff_send.reset_mock()
 
         for request in staff.values():
-            await self.manager(create_request({"type": "staff.offduty", "id": request.scope["id"]}))
+            await self.manager(
+                create_request({"type": "staff.offduty", "id": request.scope["id"]})
+            )
 
     async def test_uneven_order_speciality(self) -> None:
         # Similar to test_order_speciality_match() but there are multiple staff
@@ -284,10 +349,10 @@ class DeliveringTests(QualifierTestCase):
         staff = {
             id_: create_request(
                 {"type": "staff.onduty", "id": id_, "speciality": [speciality]},
-
                 # We wrap the mocks so that they pass the ID of the staff, that way
                 # we can ensure that the order was both sent and received to the same staff.
-                wrap_receive_mock(id_, staff_receive), wrap_send_mock(id_, staff_send)
+                wrap_receive_mock(id_, staff_receive),
+                wrap_send_mock(id_, staff_send),
             )
             for id_, speciality in zip(staff_ids, itertools.cycle(specialities))
         }
@@ -307,13 +372,16 @@ class DeliveringTests(QualifierTestCase):
             staff_id = staff_send.call_args.args[0]
 
             self.assertIn(
-                order.scope["speciality"], staff[staff_id].scope["speciality"],
-                msg="Order speciality not matched with speciality of staff"
+                order.scope["speciality"],
+                staff[staff_id].scope["speciality"],
+                msg="Order speciality not matched with speciality of staff",
             )
             staff_send.reset_mock()
 
         for request in staff.values():
-            await self.manager(create_request({"type": "staff.offduty", "id": request.scope["id"]}))
+            await self.manager(
+                create_request({"type": "staff.offduty", "id": request.scope["id"]})
+            )
 
     async def test_multiple_specialities(self) -> None:
         id_one, id_two = random.sample(STAFF_IDS, 2)
@@ -323,14 +391,14 @@ class DeliveringTests(QualifierTestCase):
         staff_one = create_request(
             {"type": "staff.onduty", "id": id_one, "speciality": [SPECIALITIES[0]]},
             wrap_receive_mock(id_one, staff_receive),
-            wrap_send_mock(id_one, staff_send)
+            wrap_send_mock(id_one, staff_send),
         )
         await self.manager(staff_one)
 
         staff_two = create_request(
             {"type": "staff.onduty", "id": id_two, "speciality": SPECIALITIES[1:]},
             wrap_receive_mock(id_two, staff_receive),
-            wrap_send_mock(id_two, staff_send)
+            wrap_send_mock(id_two, staff_send),
         )
         await self.manager(staff_two)
 
@@ -345,8 +413,16 @@ class DeliveringTests(QualifierTestCase):
             staff_send.assert_awaited_once()
             staff_id = staff_send.call_args.args[0]
             if order.scope["speciality"] == SPECIALITIES[0]:
-                self.assertEqual(staff_id, staff_one.scope["id"], msg="Order speciality not match with speciality of staff")
+                self.assertEqual(
+                    staff_id,
+                    staff_one.scope["id"],
+                    msg="Order speciality not match with speciality of staff",
+                )
             else:
-                self.assertEqual(staff_id, staff_two.scope["id"], msg="Order speciality not match with speciality of staff")
+                self.assertEqual(
+                    staff_id,
+                    staff_two.scope["id"],
+                    msg="Order speciality not match with speciality of staff",
+                )
 
             staff_send.reset_mock()
